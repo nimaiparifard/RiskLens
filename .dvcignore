@@ -1,0 +1,3 @@
+# files DVC should ignore when hashing directories
+*.tmp
+.DS_Store

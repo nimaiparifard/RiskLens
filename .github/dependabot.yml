@@ -1,0 +1,23 @@
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: "/"
+    schedule: { interval: weekly }
+    groups:
+      ml: { patterns: ["lightgbm", "xgboost", "catboost", "scikit-learn", "shap", "mlflow", "optuna"] }
+      django: { patterns: ["django*", "djangorestframework*", "drf-*", "celery*"] }
+  - package-ecosystem: npm
+    directory: "/frontend"
+    schedule: { interval: weekly }
+    groups:
+      react: { patterns: ["react*", "@types/react*", "@tanstack/*"] }
+      tooling: { patterns: ["vite", "vitest", "eslint*", "typescript*", "@vitejs/*"] }
+  - package-ecosystem: docker
+    directory: "/backend"
+    schedule: { interval: monthly }
+  - package-ecosystem: docker
+    directory: "/serving"
+    schedule: { interval: monthly }
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule: { interval: monthly }

@@ -1,0 +1,45 @@
+{
+  "uid": "risklens-model",
+  "title": "RiskLens · Model behaviour",
+  "schemaVersion": 39,
+  "time": { "from": "now-24h", "to": "now" },
+  "refresh": "30s",
+  "templating": { "list": [
+    { "name": "task", "type": "custom", "query": "credit,fraud", "current": { "text": "credit", "value": "credit" } }
+  ] },
+  "panels": [
+    {
+      "type": "timeseries", "title": "Mean predicted probability ($task)", "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "datasource": { "uid": "prometheus" },
+      "targets": [{ "expr": "sum by (model_version) (rate(risklens_prediction_probability_sum{task=\"$task\"}[15m])) / sum by (model_version) (rate(risklens_prediction_probability_count{task=\"$task\"}[15m]))", "legendFormat": "v{{model_version}}" }],
+      "fieldConfig": { "defaults": { "unit": "percentunit", "custom": { "lineWidth": 2 } } }
+    },
+    {
+      "type": "timeseries", "title": "Decision mix ($task)", "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+      "datasource": { "uid": "prometheus" },
+      "targets": [{ "expr": "sum by (decision) (rate(risklens_decisions_total{task=\"$task\"}[15m])) / ignoring(decision) group_left sum(rate(risklens_decisions_total{task=\"$task\"}[15m]))", "legendFormat": "{{decision}}" }],
+      "fieldConfig": { "defaults": { "unit": "percentunit", "custom": { "lineWidth": 2, "stacking": { "mode": "normal" }, "fillOpacity": 60 } } }
+    },
+    {
+      "type": "heatmap", "title": "Prediction distribution over time ($task)", "gridPos": { "x": 0, "y": 8, "w": 12, "h": 9 },
+      "datasource": { "uid": "prometheus" },
+      "targets": [{ "expr": "sum by (le) (increase(risklens_prediction_probability_bucket{task=\"$task\"}[10m]))", "format": "heatmap", "legendFormat": "{{le}}" }],
+      "options": { "calculate": false, "color": { "mode": "scheme", "scheme": "Blues" }, "yAxis": { "unit": "percentunit" } }
+    },
+    {
+      "type": "timeseries", "title": "Model latency p95 by version ($task)", "gridPos": { "x": 12, "y": 8, "w": 12, "h": 9 },
+      "datasource": { "uid": "prometheus" },
+      "targets": [{ "expr": "histogram_quantile(0.95, sum by (le, model_version) (rate(risklens_model_latency_seconds_bucket{task=\"$task\"}[5m])))", "legendFormat": "v{{model_version}}" }],
+      "fieldConfig": { "defaults": { "unit": "s", "custom": { "lineWidth": 2 } } }
+    },
+    {
+      "type": "timeseries", "title": "Shadow mode: |champion - challenger| p50 / p95", "gridPos": { "x": 0, "y": 17, "w": 24, "h": 7 },
+      "datasource": { "uid": "prometheus" },
+      "targets": [
+        { "expr": "histogram_quantile(0.5, sum by (le) (rate(risklens_shadow_abs_diff_bucket{task=\"$task\"}[30m])))", "legendFormat": "p50" },
+        { "expr": "histogram_quantile(0.95, sum by (le) (rate(risklens_shadow_abs_diff_bucket{task=\"$task\"}[30m])))", "legendFormat": "p95" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "percentunit", "custom": { "lineWidth": 2 } } }
+    }
+  ]
+}

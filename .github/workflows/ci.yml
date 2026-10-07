@@ -1,0 +1,168 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  UV_VERSION: "0.4.18"
+  PYTHON_VERSION: "3.12"
+  NODE_VERSION: "20"
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with: { version: "${{ env.UV_VERSION }}", enable-cache: true }
+      - run: uv python install ${{ env.PYTHON_VERSION }}
+      - run: uv sync --all-packages --all-extras
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run mypy ml/src/risklens
+      - uses: actions/setup-node@v4
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: npm, cache-dependency-path: frontend/package-lock.json }
+      - run: npm ci
+        working-directory: frontend
+      - run: npm run lint && npm run typecheck
+        working-directory: frontend
+
+  test-ml:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with: { version: "${{ env.UV_VERSION }}", enable-cache: true }
+      - run: uv python install ${{ env.PYTHON_VERSION }}
+      - run: uv sync --all-packages --all-extras
+      # unit + property tests + schema tests + "smoke train" on synthetic data (< 1 min, CPU)
+      - run: uv run pytest --cov=risklens --cov-report=xml
+        working-directory: ml
+      - uses: actions/upload-artifact@v4
+        with: { name: coverage-ml, path: ml/coverage.xml }
+
+  test-serving:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with: { version: "${{ env.UV_VERSION }}", enable-cache: true }
+      - run: uv python install ${{ env.PYTHON_VERSION }}
+      - run: uv sync --all-packages --all-extras
+      - run: uv run pytest
+        working-directory: serving
+
+  test-backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env: { POSTGRES_USER: risklens, POSTGRES_PASSWORD: risklens, POSTGRES_DB: risklens }
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U risklens" --health-interval 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+    env:
+      DATABASE_URL: postgres://risklens:risklens@localhost:5432/risklens
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with: { version: "${{ env.UV_VERSION }}", enable-cache: true }
+      - run: uv python install ${{ env.PYTHON_VERSION }}
+      - run: uv sync --all-packages --all-extras
+      - run: uv run python manage.py makemigrations --check --dry-run
+        working-directory: backend
+        env: { DJANGO_SETTINGS_MODULE: config.settings.test }
+      - run: uv run pytest --cov --cov-report=xml --cov-fail-under=80
+        working-directory: backend
+
+  test-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: npm, cache-dependency-path: frontend/package-lock.json }
+      - run: npm ci && npm test
+        working-directory: frontend
+
+  build:
+    needs: [lint, test-ml, test-serving, test-backend, test-frontend]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - { name: backend, context: ., file: backend/Dockerfile }
+          - { name: serving, context: ., file: serving/Dockerfile }
+          - { name: frontend, context: frontend, file: frontend/Dockerfile }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.file }}
+          push: false
+          load: true
+          tags: risklens-${{ matrix.name }}:ci
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
+      - name: trivy image scan
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: risklens-${{ matrix.name }}:ci
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
+
+  e2e:
+    if: github.ref == 'refs/heads/main'
+    needs: [build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with: { version: "${{ env.UV_VERSION }}", enable-cache: true }
+      - run: uv python install ${{ env.PYTHON_VERSION }} && uv sync --all-packages --all-extras
+      - name: train smoke models (synthetic) for the stack
+        run: |
+          uv run risklens train -c ml/configs/ci.yaml
+          uv run risklens train -c ml/configs/ci_fraud.yaml
+          mkdir -p models/credit models/fraud
+          cp .cache/ci/model/scorer.joblib models/credit/
+          cp .cache/ci_fraud/model/scorer.joblib models/fraud/
+      - name: start stack
+        run: |
+          cp .env.example .env
+          sed -i 's/CHANGE-ME-min-8-chars/ci-password-123/; s/=CHANGE-ME$/=ci-secret/; s/CHANGE-ME-long-random-string/ci-django-secret/' .env
+          docker compose -f infra/docker-compose.yml --env-file .env up -d --build --wait
+          docker compose -f infra/docker-compose.yml --env-file .env exec -T backend python manage.py seed_demo --applications 10
+      - uses: actions/setup-node@v4
+        with: { node-version: "${{ env.NODE_VERSION }}" }
+      - run: npm ci && npx playwright install --with-deps chromium && npx playwright test
+        working-directory: frontend
+        env: { E2E_BASE_URL: "http://localhost:3000" }
+      - if: failure()
+        run: docker compose -f infra/docker-compose.yml logs --tail=200
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: gitleaks/gitleaks-action@v2
+        env: { GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
+      - uses: astral-sh/setup-uv@v3
+        with: { version: "${{ env.UV_VERSION }}" }
+      - run: uv python install ${{ env.PYTHON_VERSION }} && uv sync --all-packages --all-extras
+      - run: uv run pip-audit --skip-editable --progress-spinner off || true   # report, don't block on unfixable CVEs
+      - uses: actions/setup-node@v4
+        with: { node-version: "${{ env.NODE_VERSION }}" }
+      - run: npm ci && npm audit --audit-level=high --omit=dev
+        working-directory: frontend

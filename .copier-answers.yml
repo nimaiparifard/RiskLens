@@ -1,0 +1,8 @@
+# Generated from the ai-product-template (copier). `copier update` pulls template changes.
+_src_path: gh:your-user/ai-product-template
+_commit: v0.1.0
+project_name: risklens
+pkg: risklens
+description: Credit risk & fraud scoring platform
+use_llm: false
+use_channels: false

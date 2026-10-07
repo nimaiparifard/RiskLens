@@ -1,0 +1,88 @@
+# DVC pipeline: download -> validate -> features -> train -> evaluate   (`dvc repro`)
+# Raw data is tracked by `dvc add` in the download stage outputs; remote = MinIO s3://risklens-dvc
+vars:
+  - credit: ml/configs/credit.yaml
+  - fraud: ml/configs/fraud.yaml
+
+stages:
+  download_credit:
+    cmd: risklens download credit
+    outs:
+      - data/raw/home-credit:
+          persist: true
+  download_fraud:
+    cmd: risklens download fraud
+    outs:
+      - data/raw/ieee-fraud:
+          persist: true
+
+  validate_credit:
+    cmd: risklens validate -c ${credit}
+    deps: [data/raw/home-credit, ml/src/risklens/data/schemas.py]
+    outs:
+      - reports/credit/validation.json:
+          cache: false
+
+  features_credit:
+    cmd: risklens features -c ${credit} --skip-validation
+    deps:
+      - data/raw/home-credit
+      - reports/credit/validation.json
+      - ml/src/risklens/features
+      - ml/src/risklens/data
+    outs:
+      - data/processed/credit_features.parquet
+      - data/processed/credit_features_test.parquet
+
+  features_fraud:
+    cmd: risklens features -c ${fraud}
+    deps: [data/raw/ieee-fraud, ml/src/risklens/data]
+    outs:
+      - data/processed/fraud_features.parquet
+
+  train_credit:
+    cmd: risklens train -c ${credit}
+    deps:
+      - data/processed/credit_features.parquet
+      - ml/src/risklens
+      - ml/configs/credit.yaml
+      - ml/configs/costs.yaml
+    outs:
+      - data/processed/credit_splits.parquet:
+          persist: true         # frozen test set: never regenerated
+      - models/credit/scorer.joblib
+    metrics:
+      - reports/credit/metrics.json:
+          cache: false
+    plots:
+      - reports/credit/plots/test_roc.png
+      - reports/credit/plots/calibration_before_after.png
+      - reports/credit/plots/shap_summary.png
+
+  train_fraud:
+    cmd: risklens train -c ${fraud}
+    deps:
+      - data/processed/fraud_features.parquet
+      - ml/src/risklens
+      - ml/configs/fraud.yaml
+    outs:
+      - data/processed/fraud_splits.parquet:
+          persist: true
+      - models/fraud/scorer.joblib
+    metrics:
+      - reports/fraud/metrics.json:
+          cache: false
+
+  evaluate_credit:
+    cmd: risklens evaluate -c ${credit}
+    deps: [models/credit/scorer.joblib, data/processed/credit_splits.parquet]
+    metrics:
+      - reports/credit/eval_metrics.json:
+          cache: false
+
+  evaluate_fraud:
+    cmd: risklens evaluate -c ${fraud}
+    deps: [models/fraud/scorer.joblib, data/processed/fraud_splits.parquet]
+    metrics:
+      - reports/fraud/eval_metrics.json:
+          cache: false

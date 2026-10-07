@@ -1,0 +1,36 @@
+# Postgres / Redis / MinIO / MLflow are expected as managed services or separate charts
+# (e.g. bitnami/postgresql, bitnami/redis, minio/minio, community-charts/mlflow).
+image:
+  registry: ghcr.io/your-user
+  tag: latest
+  pullPolicy: IfNotPresent
+
+existingSecret: risklens-secrets   # DJANGO_SECRET_KEY, DATABASE_URL, SERVING_INTERNAL_TOKEN, AWS_* ...
+
+env:
+  CELERY_BROKER_URL: redis://risklens-redis-master:6379/0
+  CELERY_RESULT_BACKEND: redis://risklens-redis-master:6379/1
+  MLFLOW_TRACKING_URI: http://mlflow:5000
+  S3_ENDPOINT_URL: http://minio:9000
+  S3_BUCKET: risklens-media
+  DJANGO_ALLOWED_HOSTS: "*"
+
+backend:
+  replicas: 2
+  resources: { requests: { cpu: 250m, memory: 512Mi }, limits: { memory: 1Gi } }
+worker:
+  replicas: 1
+  resources: { requests: { cpu: 500m, memory: 1Gi }, limits: { memory: 2Gi } }
+serving:
+  replicas: 2
+  resources: { requests: { cpu: 500m, memory: 1Gi }, limits: { memory: 2Gi } }
+  autoscaling: { enabled: true, minReplicas: 2, maxReplicas: 8, targetCPUUtilizationPercentage: 70 }
+  shadowEnabled: false
+frontend:
+  replicas: 2
+
+ingress:
+  enabled: true
+  className: nginx
+  host: risklens.example.com
+  tls: { enabled: true, secretName: risklens-tls, clusterIssuer: letsencrypt }

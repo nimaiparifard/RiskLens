@@ -1,0 +1,24 @@
+# Business cost matrices. Thresholds are chosen to MINIMISE expected cost,
+# not to maximise accuracy/F1.
+
+credit:
+  # FN = approving a loan that defaults  -> lose AMT_CREDIT * LGD
+  # FP = rejecting a good customer        -> lose the margin we would have earned
+  amount_column: AMT_CREDIT
+  default_amount: 500000
+  fn_cost_rate: 0.45        # loss given default (Basel foundation-IRB unsecured ~45%)
+  fp_cost_rate: 0.08        # lifetime net margin on a good loan
+  fp_cost_fixed: 0
+  # risk grades by calibrated PD (upper bound, inclusive)
+  grade_bands: {A: 0.03, B: 0.06, C: 0.12, D: 0.25, E: 1.0}
+
+fraud:
+  # FN = missed fraud    -> lose the transaction amount (chargeback)
+  # FP = blocked genuine -> manual review + customer friction
+  amount_column: TransactionAmt
+  default_amount: 100
+  fn_cost_rate: 1.0
+  fp_cost_rate: 0.0
+  fp_cost_fixed: 5.0
+  target_fpr: 0.01          # operate at 1% false-positive rate
+  grade_bands: {LOW: 0.1, MEDIUM: 0.5, HIGH: 1.0}

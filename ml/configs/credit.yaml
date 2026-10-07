@@ -1,0 +1,117 @@
+# Credit-risk (Home Credit Default Risk) training config.
+# Paths are relative to the repository root (run `risklens ...` from there).
+task: credit
+experiment: risklens-credit
+registered_model: risklens-credit
+seed: 42
+id_column: SK_ID_CURR
+target: TARGET
+
+data:
+  raw_dir: data/raw/home-credit
+  processed_path: data/processed/credit_features.parquet
+  processed_test_path: data/processed/credit_features_test.parquet
+  splits_path: data/processed/credit_splits.parquet
+  nrows: null          # e.g. 30000 for a quick run
+  synthetic: false
+
+split:
+  strategy: stratified # 70 / 15 / 15, test set frozen (DVC-tracked split file)
+  valid_size: 0.15
+  test_size: 0.15
+
+# one feature module per source table (risklens.features.registry)
+feature_sources: [application, bureau, previous, installments, pos_cash, credit_card]
+
+# Kept for the fairness audit but never shown to the model (regulatory: ECOA / EU AI Act)
+exclude_features: [CODE_GENDER, AGE_GROUP]
+
+encoding:
+  target_encode: [ORGANIZATION_TYPE, OCCUPATION_TYPE, NAME_INCOME_TYPE]
+  one_hot_max_cardinality: 10
+  n_folds: 5
+  smoothing: 20.0
+
+selection:
+  enabled: true
+  max_missing: 0.95
+  corr_threshold: 0.98
+  top_k: 300
+  permutation: false
+
+imbalance: scale_pos_weight   # none | class_weight | scale_pos_weight | undersample | smote
+
+models:
+  - name: logreg_woe
+    params: {max_bins: 10, min_iv: 0.02, max_features: 60, C: 0.1}
+  - name: lightgbm
+    params:
+      n_estimators: 5000
+      learning_rate: 0.02
+      num_leaves: 34
+      max_depth: 8
+      min_child_samples: 80
+      subsample: 0.87
+      subsample_freq: 1
+      colsample_bytree: 0.3
+      reg_alpha: 0.04
+      reg_lambda: 0.07
+      early_stopping_rounds: 200
+  - name: xgboost
+    params:
+      n_estimators: 5000
+      learning_rate: 0.02
+      max_depth: 6
+      min_child_weight: 30
+      subsample: 0.85
+      colsample_bytree: 0.3
+      reg_lambda: 1.0
+      early_stopping_rounds: 200
+  - name: catboost
+    params:
+      iterations: 3000
+      learning_rate: 0.05
+      depth: 6
+      l2_leaf_reg: 3
+      early_stopping_rounds: 200
+  - name: stacking
+    params:
+      base_models: [logreg_woe, lightgbm, xgboost, catboost]
+      n_folds: 5
+
+final_model: stacking
+calibration: isotonic
+cv_folds: 5
+robustness_check: true      # out-of-time style check: train low SK_ID, test high SK_ID
+
+tuning:
+  enabled: false
+  model: lightgbm
+  n_trials: 100
+  storage: null             # e.g. ${OPTUNA_STORAGE} -> postgres, resumable
+
+explain:
+  top_k: 5
+  model: lightgbm
+  shap_sample: 2000
+
+fairness:
+  enabled: true
+  sensitive_features: [CODE_GENDER, AGE_GROUP]
+  # Gender is a protected attribute (excluded from inputs, gap gates promotion).
+  # Age may legally be used in empirically-derived credit scoring (ECOA), so its
+  # gap is audited and reported but does not block promotion - see docs/fairness.md
+  gate_features: [CODE_GENDER]
+  max_gap: 0.10
+  mitigate: true
+
+promotion:
+  primary_metric: roc_auc
+  min_improvement: 0.002
+  guard_metrics: {expected_cost: lower}
+  max_fairness_gap: 0.10
+
+costs: costs.yaml
+reports_dir: reports/credit
+model_dir: models/credit
+mlflow: true

@@ -1,0 +1,19 @@
+# Dev overrides (picked up automatically): hot-reload source mounts + debug settings.
+services:
+  backend:
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.dev
+      LOG_JSON: "false"
+    volumes: ["../backend:/app"]
+    command: sh -c "python manage.py migrate --noinput && python manage.py runserver 0.0.0.0:8000"
+
+  worker:
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.dev
+    volumes: ["../backend:/app"]
+
+  serving:
+    volumes:
+      - "../serving/app:/app/app"
+      - "../models:/models:ro"
+    command: uvicorn app.main:create_app --factory --host 0.0.0.0 --port 8001 --reload

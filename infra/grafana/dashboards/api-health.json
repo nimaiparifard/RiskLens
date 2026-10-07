@@ -1,0 +1,51 @@
+{
+  "uid": "risklens-api",
+  "title": "RiskLens · API health",
+  "schemaVersion": 39,
+  "time": { "from": "now-1h", "to": "now" },
+  "refresh": "10s",
+  "panels": [
+    {
+      "type": "stat", "title": "Requests / s", "gridPos": { "x": 0, "y": 0, "w": 6, "h": 4 },
+      "datasource": { "uid": "prometheus" },
+      "targets": [{ "expr": "sum(rate(risklens_http_requests_total[1m]))" }],
+      "fieldConfig": { "defaults": { "unit": "reqps", "decimals": 1 } }
+    },
+    {
+      "type": "stat", "title": "Error rate (5xx)", "gridPos": { "x": 6, "y": 0, "w": 6, "h": 4 },
+      "datasource": { "uid": "prometheus" },
+      "targets": [{ "expr": "sum(rate(risklens_http_requests_total{status=~\"5..\"}[5m])) / clamp_min(sum(rate(risklens_http_requests_total[5m])), 1e-9)" }],
+      "fieldConfig": { "defaults": { "unit": "percentunit", "decimals": 2,
+        "thresholds": { "mode": "absolute", "steps": [{ "color": "#0ca30c", "value": null }, { "color": "#d03b3b", "value": 0.02 }] } } }
+    },
+    {
+      "type": "stat", "title": "Fraud p95 latency (budget 50 ms)", "gridPos": { "x": 12, "y": 0, "w": 6, "h": 4 },
+      "datasource": { "uid": "prometheus" },
+      "targets": [{ "expr": "histogram_quantile(0.95, sum by (le) (rate(risklens_model_latency_seconds_bucket{task=\"fraud\"}[5m])))" }],
+      "fieldConfig": { "defaults": { "unit": "s", "decimals": 3,
+        "thresholds": { "mode": "absolute", "steps": [{ "color": "#0ca30c", "value": null }, { "color": "#d03b3b", "value": 0.05 }] } } }
+    },
+    {
+      "type": "stat", "title": "Models loaded", "gridPos": { "x": 18, "y": 0, "w": 6, "h": 4 },
+      "datasource": { "uid": "prometheus" },
+      "targets": [{ "expr": "risklens_model_loaded", "legendFormat": "{{task}} v{{model_version}}" }],
+      "options": { "textMode": "name" }
+    },
+    {
+      "type": "timeseries", "title": "HTTP latency by route (p50 / p95 / p99)", "gridPos": { "x": 0, "y": 4, "w": 12, "h": 9 },
+      "datasource": { "uid": "prometheus" },
+      "targets": [
+        { "expr": "histogram_quantile(0.5, sum by (le, route) (rate(risklens_http_request_duration_seconds_bucket[5m])))", "legendFormat": "p50 {{route}}" },
+        { "expr": "histogram_quantile(0.95, sum by (le, route) (rate(risklens_http_request_duration_seconds_bucket[5m])))", "legendFormat": "p95 {{route}}" },
+        { "expr": "histogram_quantile(0.99, sum by (le, route) (rate(risklens_http_request_duration_seconds_bucket[5m])))", "legendFormat": "p99 {{route}}" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s", "custom": { "lineWidth": 2 } } }
+    },
+    {
+      "type": "timeseries", "title": "Requests by status", "gridPos": { "x": 12, "y": 4, "w": 12, "h": 9 },
+      "datasource": { "uid": "prometheus" },
+      "targets": [{ "expr": "sum by (status) (rate(risklens_http_requests_total[1m]))", "legendFormat": "{{status}}" }],
+      "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "lineWidth": 2 } } }
+    }
+  ]
+}

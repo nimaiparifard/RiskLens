@@ -1,0 +1,40 @@
+name: ml-eval
+# Quality gate on PRs touching ML code: train the smoke models on the PR and on main
+# (same synthetic data, same seed) and fail if AUC drops more than the threshold.
+on:
+  pull_request:
+    paths: ["ml/**", "serving/app/feature_service.py"]
+
+jobs:
+  quality-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { path: pr }
+      - uses: actions/checkout@v4
+        with: { ref: "${{ github.base_ref }}", path: base }
+      - uses: astral-sh/setup-uv@v3
+        with: { enable-cache: true }
+      - run: uv python install 3.12
+      - name: train on main
+        working-directory: base
+        run: |
+          uv sync --all-packages --all-extras
+          uv run risklens train -c ml/configs/ci.yaml
+          uv run risklens train -c ml/configs/ci_fraud.yaml || true
+      - name: train on PR
+        working-directory: pr
+        run: |
+          uv sync --all-packages --all-extras
+          uv run risklens train -c ml/configs/ci.yaml
+          uv run risklens train -c ml/configs/ci_fraud.yaml
+      - name: compare
+        run: |
+          python pr/scripts/compare_metrics.py \
+            --base base/.cache/ci/reports/metrics.json --head pr/.cache/ci/reports/metrics.json \
+            --metric roc_auc --max-drop 0.01 --summary "$GITHUB_STEP_SUMMARY"
+          if [ -f base/.cache/ci_fraud/reports/metrics.json ]; then
+            python pr/scripts/compare_metrics.py \
+              --base base/.cache/ci_fraud/reports/metrics.json --head pr/.cache/ci_fraud/reports/metrics.json \
+              --metric roc_auc --max-drop 0.01 --summary "$GITHUB_STEP_SUMMARY"
+          fi

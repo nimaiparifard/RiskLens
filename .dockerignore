@@ -1,0 +1,19 @@
+# build context is the repo root - keep it small
+data/
+models/
+reports/
+mlruns/
+mlartifacts/
+mlflow.db
+.cache/
+.venv/
+**/node_modules/
+**/dist/
+**/__pycache__/
+**/.pytest_cache/
+**/*.pyc
+.git/
+.dvc/cache/
+notebooks/
+docs/
+frontend/test-results/

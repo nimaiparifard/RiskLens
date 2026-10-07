@@ -1,0 +1,104 @@
+# feature -> human-readable adverse-action / reason text.
+# "increases_risk" is used when the feature pushed the score towards default
+# (this is what goes into a rejection letter); "decreases_risk" otherwise.
+features:
+  EXT_SOURCE_1: {increases_risk: "Low external credit bureau score (bureau 1)", decreases_risk: "Strong external credit bureau score (bureau 1)"}
+  EXT_SOURCE_2: {increases_risk: "Low external credit bureau score (bureau 2)", decreases_risk: "Strong external credit bureau score (bureau 2)"}
+  EXT_SOURCE_3: {increases_risk: "Low external credit bureau score (bureau 3)", decreases_risk: "Strong external credit bureau score (bureau 3)"}
+  EXT_SOURCE_MEAN: {increases_risk: "Low average external credit score", decreases_risk: "Strong average external credit score"}
+  EXT_SOURCE_MIN: {increases_risk: "At least one weak external credit score", decreases_risk: "All external credit scores are solid"}
+  EXT_SOURCE_MAX: {increases_risk: "No strong external credit score", decreases_risk: "At least one very strong external credit score"}
+  EXT_SOURCE_PROD: {increases_risk: "Weak combined external credit scores", decreases_risk: "Strong combined external credit scores"}
+  EXT_SOURCE_WEIGHTED: {increases_risk: "Weak combined external credit scores", decreases_risk: "Strong combined external credit scores"}
+  EXT_SOURCE_STD: {increases_risk: "Inconsistent external credit scores", decreases_risk: "Consistent external credit scores"}
+  CREDIT_TO_INCOME: {increases_risk: "Loan amount is high relative to income", decreases_risk: "Loan amount is modest relative to income"}
+  ANNUITY_TO_INCOME: {increases_risk: "Monthly payment is high relative to income", decreases_risk: "Monthly payment is affordable relative to income"}
+  CREDIT_TERM: {increases_risk: "Loan term structure associated with higher risk", decreases_risk: "Loan term structure associated with lower risk"}
+  CREDIT_TO_GOODS: {increases_risk: "Loan exceeds the price of the financed goods", decreases_risk: "Loan is well covered by the goods price"}
+  GOODS_MINUS_CREDIT: {increases_risk: "Loan exceeds the price of the financed goods", decreases_risk: "Loan is well covered by the goods price"}
+  AMT_ANNUITY: {increases_risk: "High monthly payment", decreases_risk: "Low monthly payment"}
+  AMT_CREDIT: {increases_risk: "Large loan amount", decreases_risk: "Small loan amount"}
+  AMT_GOODS_PRICE: {increases_risk: "Price of financed goods", decreases_risk: "Price of financed goods"}
+  AGE_YEARS: {increases_risk: "Applicant age group has higher historic default rates", decreases_risk: "Applicant age group has lower historic default rates"}
+  DAYS_BIRTH: {increases_risk: "Applicant age group has higher historic default rates", decreases_risk: "Applicant age group has lower historic default rates"}
+  DAYS_EMPLOYED: {increases_risk: "Short time with current employer", decreases_risk: "Long, stable employment"}
+  EMPLOYED_TO_AGE: {increases_risk: "Short employment history for age", decreases_risk: "Long employment history for age"}
+  DAYS_ID_PUBLISH: {increases_risk: "Identity document changed recently", decreases_risk: "Identity document is long-standing"}
+  DAYS_LAST_PHONE_CHANGE: {increases_risk: "Phone number changed recently", decreases_risk: "Stable phone number"}
+  DAYS_REGISTRATION: {increases_risk: "Recent change of registration", decreases_risk: "Long-standing registration"}
+  OWN_CAR_AGE: {increases_risk: "Age of owned car", decreases_risk: "Age of owned car"}
+  REGION_RATING_CLIENT_W_CITY: {increases_risk: "Region with higher historic risk", decreases_risk: "Region with lower historic risk"}
+  REGION_RATING_CLIENT: {increases_risk: "Region with higher historic risk", decreases_risk: "Region with lower historic risk"}
+  NAME_EDUCATION_TYPE: {increases_risk: "Education level associated with higher risk", decreases_risk: "Education level associated with lower risk"}
+  ORGANIZATION_TYPE: {increases_risk: "Employer sector with higher historic default rates", decreases_risk: "Employer sector with lower historic default rates"}
+  OCCUPATION_TYPE: {increases_risk: "Occupation with higher historic default rates", decreases_risk: "Occupation with lower historic default rates"}
+  NAME_INCOME_TYPE: {increases_risk: "Income type associated with higher risk", decreases_risk: "Income type associated with lower risk"}
+  NAME_CONTRACT_TYPE: {increases_risk: "Product type associated with higher risk", decreases_risk: "Product type associated with lower risk"}
+  FLAG_OWN_CAR: {increases_risk: "Does not own a car", decreases_risk: "Owns a car"}
+  DAYS_EMPLOYED_ANOM: {increases_risk: "No current employment recorded", decreases_risk: "Currently employed"}
+  INSTAL_DPD_MEAN: {increases_risk: "Late payments on previous loans", decreases_risk: "On-time payments on previous loans"}
+  INSTAL_DPD_MAX: {increases_risk: "Severe late payment on a previous loan", decreases_risk: "No severe late payments"}
+  INSTAL_DPD_SUM: {increases_risk: "Many days past due on previous loans", decreases_risk: "Few days past due on previous loans"}
+  INSTAL_IS_LATE_MEAN: {increases_risk: "High share of late instalments", decreases_risk: "Low share of late instalments"}
+  INSTAL_DBD_MEAN: {increases_risk: "Rarely pays before the due date", decreases_risk: "Usually pays before the due date"}
+  INSTAL_DBD_MAX: {increases_risk: "Rarely pays before the due date", decreases_risk: "Usually pays before the due date"}
+  INSTAL_PAYMENT_DIFF_MEAN: {increases_risk: "Previous instalments under-paid", decreases_risk: "Previous instalments paid in full"}
+  INSTAL_PAYMENT_RATIO_MEAN: {increases_risk: "Previous instalments under-paid", decreases_risk: "Previous instalments paid in full"}
+  BURO_DAYS_CREDIT_MAX: {increases_risk: "Recently opened credit at another lender", decreases_risk: "No recent credit at other lenders"}
+  BURO_DAYS_CREDIT_MEAN: {increases_risk: "Credit history at other lenders is recent", decreases_risk: "Long credit history at other lenders"}
+  ACTIVE_DAYS_CREDIT_MAX: {increases_risk: "Recently opened credit at another lender", decreases_risk: "No recent credit at other lenders"}
+  BURO_IS_ACTIVE_MEAN: {increases_risk: "Many active credits at other lenders", decreases_risk: "Few active credits at other lenders"}
+  BURO_DEBT_TO_INCOME: {increases_risk: "High outstanding debt relative to income", decreases_risk: "Low outstanding debt relative to income"}
+  BURO_AMT_CREDIT_SUM_DEBT_SUM: {increases_risk: "High outstanding debt at other lenders", decreases_risk: "Low outstanding debt at other lenders"}
+  ACTIVE_DEBT_RATIO_MEAN: {increases_risk: "Large share of active credit still outstanding", decreases_risk: "Active credits are mostly repaid"}
+  PREV_REFUSED_RATE: {increases_risk: "Previous applications were refused", decreases_risk: "Previous applications were approved"}
+  PREV_APPROVED_RATE: {increases_risk: "Few previous applications approved", decreases_risk: "Previous applications were approved"}
+  PREV_APP_TO_CREDIT_MEAN: {increases_risk: "Previously requested more than was granted", decreases_risk: "Previously granted what was requested"}
+  PREV_CNT_PAYMENT_MEAN: {increases_risk: "Long-term previous loans", decreases_risk: "Short-term previous loans"}
+  POS_SK_DPD_MEAN: {increases_risk: "Days past due on point-of-sale loans", decreases_risk: "No arrears on point-of-sale loans"}
+  POS_REMAINING_SHARE_MEAN: {increases_risk: "Large remaining balance on point-of-sale loans", decreases_risk: "Point-of-sale loans mostly repaid"}
+  CC_UTILIZATION_MEAN: {increases_risk: "High credit-card utilisation", decreases_risk: "Low credit-card utilisation"}
+  CC_UTILIZATION_MAX: {increases_risk: "Credit card maxed out at some point", decreases_risk: "Credit card never maxed out"}
+  CC_AMT_BALANCE_MEAN: {increases_risk: "High credit-card balances", decreases_risk: "Low credit-card balances"}
+  # fraud
+  TransactionAmt: {increases_risk: "Unusual transaction amount", decreases_risk: "Typical transaction amount"}
+  UID_AMT_TO_MEAN: {increases_risk: "Amount far above this customer's usual spend", decreases_risk: "Amount in line with usual spend"}
+  UID_COUNT_1H: {increases_risk: "Burst of transactions in the last hour", decreases_risk: "Normal transaction frequency"}
+  CARD1_COUNT_1H: {increases_risk: "Burst of transactions on this card in the last hour", decreases_risk: "Normal card activity"}
+  P_emaildomain: {increases_risk: "Purchaser e-mail domain with high fraud rate", decreases_risk: "Purchaser e-mail domain with low fraud rate"}
+  R_emaildomain: {increases_risk: "Recipient e-mail domain with high fraud rate", decreases_risk: "Recipient e-mail domain with low fraud rate"}
+  DeviceInfo_family: {increases_risk: "Device type with high fraud rate", decreases_risk: "Device type with low fraud rate"}
+
+# features expressing the same underlying fact -> ONE reason (SHAP summed within the group)
+groups:
+  external_scores: [EXT_SOURCE_*, CREDIT_TO_ANNUITY_X_EXT]
+  age: [DAYS_BIRTH, AGE_YEARS]
+  employment: [DAYS_EMPLOYED, DAYS_EMPLOYED_ANOM, EMPLOYED_TO_AGE]
+  goods_coverage: [CREDIT_TO_GOODS, GOODS_MINUS_CREDIT, AMT_GOODS_PRICE]
+  late_payments: [INSTAL_DPD*, INSTAL_IS_LATE*, INSTAL_12M_*, INSTAL_24M_*, INSTAL_LATE_TREND]
+  underpayment: [INSTAL_PAYMENT_*, INSTAL_IS_UNDERPAID*]
+  early_payment: [INSTAL_DBD*]
+  previous_refusals: [PREV_REFUSED_RATE, PREV_APPROVED_RATE, REFUSED_*, PREV_12M_REFUSED_COUNT]
+  card_utilisation: [CC_UTILIZATION*, CC_6M_UTILIZATION*, CC_AMT_BALANCE*]
+  client_velocity: [UID_COUNT_*, UID_AMT_SUM_*, CARD1_COUNT_*, CARD1_AMT_SUM_*]
+  client_spend_pattern: [UID_AMT_*, CARD1_AMT_MEAN, CARD1_AMT_STD, CARD1_AMT_TO_MEAN, CARD1_AMT_ZSCORE]
+
+# fallback by feature-name prefix (first match wins)
+prefixes:
+  BURO_: "credit history at other lenders"
+  ACTIVE_: "active credits at other lenders"
+  CLOSED_: "closed credits at other lenders"
+  PREV_: "previous applications"
+  APPROVED_: "previously approved loans"
+  REFUSED_: "previously refused applications"
+  INSTAL_: "repayment history"
+  POS_: "point-of-sale loan history"
+  CC_: "credit-card history"
+  FLAG_DOCUMENT: "documents provided"
+  EXT_SOURCE: "external credit scores"
+  UID_: "customer transaction history"
+  CARD1_: "card transaction history"
+  C1: "card usage counters"
+  D1: "account age / time deltas"
+  V: "risk signals from transaction metadata"
+  id_: "device / identity signals"

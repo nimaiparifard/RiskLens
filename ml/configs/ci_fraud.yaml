@@ -1,0 +1,33 @@
+# Fraud smoke config for CI / e2e: synthetic transactions, small LightGBM.
+task: fraud
+experiment: risklens-fraud-ci
+registered_model: risklens-fraud-ci
+seed: 7
+id_column: TransactionID
+target: isFraud
+
+data:
+  raw_dir: data/raw/ieee-fraud
+  processed_path: .cache/ci_fraud/fraud_features.parquet
+  splits_path: .cache/ci_fraud/fraud_splits.parquet
+  synthetic: true
+  synthetic_rows: 12000
+
+split: {strategy: time, time_column: TransactionDT, valid_size: 0.1, test_size: 0.2}
+exclude_features: [TransactionDT, uid]
+encoding: {target_encode: [P_emaildomain, card4, card6, DeviceInfo_family], n_folds: 3, smoothing: 50.0}
+selection: {enabled: true, top_k: 40}
+
+models:
+  - name: lightgbm
+    params: {n_estimators: 200, learning_rate: 0.1, num_leaves: 31, early_stopping_rounds: 30}
+
+final_model: lightgbm
+robustness_check: false
+explain: {top_k: 3, model: lightgbm}
+fairness: {enabled: false}
+promotion: {guard_metrics: {recall_at_1pct_fpr: higher}}
+costs: costs.yaml
+reports_dir: .cache/ci_fraud/reports
+model_dir: .cache/ci_fraud/model
+mlflow: false

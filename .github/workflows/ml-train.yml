@@ -1,0 +1,76 @@
+name: ml-train
+# train -> evaluate -> compare with champion -> register challenger -> (manual approval) -> champion -> hot reload
+on:
+  workflow_dispatch:
+    inputs:
+      task: { description: "credit or fraud", default: credit, type: choice, options: [credit, fraud] }
+      reason: { description: "why (e.g. drift detected)", default: manual, type: string }
+  schedule:
+    - cron: "0 3 * * 1"          # weekly retrain, Monday 03:00 UTC
+  push:
+    branches: [main]
+    paths: ["data/**.dvc", "dvc.lock", "ml/src/**", "ml/configs/**"]
+
+concurrency: { group: ml-train, cancel-in-progress: false }
+
+env:
+  TASK: ${{ inputs.task || 'credit' }}
+  MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+  MLFLOW_TRACKING_USERNAME: ${{ secrets.MLFLOW_TRACKING_USERNAME }}
+  MLFLOW_TRACKING_PASSWORD: ${{ secrets.MLFLOW_TRACKING_PASSWORD }}
+  MLFLOW_S3_ENDPOINT_URL: ${{ secrets.S3_ENDPOINT_URL }}
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+jobs:
+  train:
+    runs-on: ubuntu-latest   # swap for a self-hosted runner with more RAM for full-size runs
+    timeout-minutes: 180
+    outputs:
+      promoted: ${{ steps.promote.outputs.promoted }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with: { enable-cache: true }
+      - run: uv python install 3.12 && uv sync --all-packages --all-extras
+      - name: 1. dvc pull (data from MinIO / S3)
+        run: |
+          uv pip install "dvc[s3]"
+          uv run dvc remote modify --local minio endpointurl "${{ secrets.S3_ENDPOINT_URL }}"
+          uv run dvc pull data/raw/${{ env.TASK == 'credit' && 'home-credit' || 'ieee-fraud' }}
+      - name: 2. validate data (pandera) - fails the job if the schema breaks
+        run: uv run risklens validate -c ml/configs/${TASK}.yaml
+      - name: 3. features + train (logs params / metrics / artifacts to MLflow, registers a version)
+        run: |
+          uv run risklens features -c ml/configs/${TASK}.yaml --skip-validation
+          uv run risklens train -c ml/configs/${TASK}.yaml
+      - name: 4. evaluate on the frozen test set
+        run: uv run risklens evaluate -c ml/configs/${TASK}.yaml
+      - name: 5. compare with champion -> alias "challenger" if better
+        id: promote
+        run: |
+          uv run risklens promote -c ml/configs/${TASK}.yaml --summary-file promotion.md
+          cat promotion.md >> "$GITHUB_STEP_SUMMARY"
+          if grep -q "PROMOTE" promotion.md; then echo "promoted=true" >> "$GITHUB_OUTPUT"; else echo "promoted=false" >> "$GITHUB_OUTPUT"; fi
+      - name: 8. report
+        run: |
+          echo "### Test metrics ($TASK)" >> "$GITHUB_STEP_SUMMARY"
+          cat reports/${TASK}/model_comparison.md >> "$GITHUB_STEP_SUMMARY" || true
+      - uses: actions/upload-artifact@v4
+        with: { name: reports-${{ env.TASK }}, path: "reports/${{ env.TASK }}" }
+
+  approve:
+    needs: train
+    if: needs.train.outputs.promoted == 'true'
+    runs-on: ubuntu-latest
+    environment: production          # 6. required reviewers = manual approval gate
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - run: uv python install 3.12 && uv sync --all-packages --all-extras
+      - name: 6. promote challenger -> champion
+        run: uv run risklens promote -c ml/configs/${TASK}.yaml --approve
+      - name: 7. hot-reload serving
+        run: |
+          curl -fsS -X POST "${{ secrets.SERVING_URL }}/v1/model/reload?task=${TASK}" \
+            -H "X-Internal-Token: ${{ secrets.SERVING_INTERNAL_TOKEN }}"

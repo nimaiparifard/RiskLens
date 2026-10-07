@@ -1,0 +1,43 @@
+# Smoke config for CI: synthetic data, 1-2k rows, all models, < 1 minute.
+task: credit
+experiment: risklens-credit-ci
+registered_model: risklens-credit-ci
+seed: 7
+id_column: SK_ID_CURR
+target: TARGET
+
+data:
+  raw_dir: data/raw/home-credit
+  processed_path: .cache/ci/credit_features.parquet
+  splits_path: .cache/ci/credit_splits.parquet
+  synthetic: true
+  synthetic_rows: 1500
+
+feature_sources: [application, bureau, previous, installments, pos_cash, credit_card]
+exclude_features: [CODE_GENDER, AGE_GROUP]
+
+encoding:
+  target_encode: [ORGANIZATION_TYPE, OCCUPATION_TYPE]
+  n_folds: 3
+
+selection: {enabled: true, top_k: 60}
+
+models:
+  - name: logreg_woe
+    params: {max_bins: 5, max_features: 20}
+  - name: lightgbm
+    params: {n_estimators: 200, learning_rate: 0.1, num_leaves: 15, early_stopping_rounds: 30}
+  - name: xgboost
+    params: {n_estimators: 200, learning_rate: 0.1, max_depth: 4, early_stopping_rounds: 30}
+  - name: stacking
+    params: {base_models: [logreg_woe, lightgbm, xgboost], n_folds: 3}
+
+final_model: stacking
+cv_folds: 3
+robustness_check: false
+fairness: {enabled: true, max_gap: 1.0}
+promotion: {max_fairness_gap: 1.0}
+costs: costs.yaml
+reports_dir: .cache/ci/reports
+model_dir: .cache/ci/model
+mlflow: false

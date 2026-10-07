@@ -1,0 +1,14 @@
+{
+  "rows": 307511,
+  "target_rate": 0.08072881945686496,
+  "days_employed_anomaly": 55374,
+  "tables": {
+    "application": 307511,
+    "bureau": 1716428,
+    "bureau_balance": 27299925,
+    "previous": 1670214,
+    "installments": 13605401,
+    "pos_cash": 10001358,
+    "credit_card": 3840312
+  }
+}

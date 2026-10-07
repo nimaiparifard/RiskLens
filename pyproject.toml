@@ -1,0 +1,65 @@
+[project]
+name = "risklens-workspace"
+version = "0.1.0"
+description = "RiskLens – credit risk & fraud scoring platform (uv workspace root)"
+requires-python = ">=3.11"
+readme = "README.md"
+license = { text = "MIT" }
+
+[tool.uv]
+package = false
+
+[dependency-groups]
+dev = [
+    "pytest>=8.2",
+    "pytest-cov>=5.0",
+    "pytest-django>=4.8",
+    "hypothesis>=6.100",
+    "factory-boy>=3.3",
+    "ruff>=0.6",
+    "mypy>=1.11",
+    "pre-commit>=3.7",
+    "pip-audit>=2.7",
+]
+
+[tool.uv.workspace]
+members = ["ml", "serving", "backend"]
+
+[tool.uv.sources]
+risklens = { workspace = true }
+
+# ---------------------------------------------------------------- ruff
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = ["**/migrations/**", "frontend", "notebooks", ".venv"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "C4", "RUF", "N", "PTH"]
+ignore = [
+    "E501",   # line length is owned by `ruff format`
+    "N818",   # domain exceptions read better without an Error suffix (ServingUnavailable)
+    "RUF001", "RUF002", "RUF003",  # intentional typographic characters (–, ×, →) in text
+    "N803",   # ML convention: X, X_train
+    "N806",
+    "RUF012", # Django Meta/class attributes
+    "B008",   # FastAPI Depends()
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["risklens", "app", "apps", "config"]
+
+# ---------------------------------------------------------------- mypy
+[tool.mypy]
+python_version = "3.11"
+plugins = ["pydantic.mypy"]
+ignore_missing_imports = true
+warn_unused_ignores = true
+exclude = ["migrations/", "tests/"]
+
+[[tool.mypy.overrides]]
+module = "risklens.*"
+strict = true
+disallow_any_generics = false
+warn_return_any = false
+disallow_untyped_calls = false

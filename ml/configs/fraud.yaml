@@ -1,0 +1,79 @@
+# Fraud detection (IEEE-CIS) training config.
+# TIME-BASED split: random splits leak future card behaviour into training.
+task: fraud
+experiment: risklens-fraud
+registered_model: risklens-fraud
+seed: 42
+id_column: TransactionID
+target: isFraud
+
+data:
+  raw_dir: data/raw/ieee-fraud
+  processed_path: data/processed/fraud_features.parquet
+  splits_path: data/processed/fraud_splits.parquet
+  nrows: null
+  synthetic: false
+
+split:
+  strategy: time
+  time_column: TransactionDT
+  valid_size: 0.10   # last 10% of the training period -> early stopping + threshold
+  test_size: 0.20    # last 20% of time -> frozen test
+
+feature_sources: [fraud]
+exclude_features: [TransactionDT, uid]
+
+encoding:
+  target_encode: [P_emaildomain, R_emaildomain, card4, card6, DeviceInfo_family]
+  one_hot_max_cardinality: 6
+  n_folds: 5
+  smoothing: 50.0
+
+selection:
+  enabled: true
+  max_missing: 0.97
+  corr_threshold: 0.995
+  top_k: 250
+
+imbalance: scale_pos_weight
+
+models:
+  - name: lightgbm
+    params:
+      n_estimators: 4000
+      learning_rate: 0.03
+      num_leaves: 256
+      max_depth: -1
+      min_child_samples: 100
+      subsample: 0.8
+      subsample_freq: 1
+      colsample_bytree: 0.4
+      reg_alpha: 0.1
+      reg_lambda: 0.5
+      early_stopping_rounds: 200
+  - name: xgboost
+    enabled: false
+    params: {n_estimators: 3000, learning_rate: 0.03, max_depth: 9, subsample: 0.8,
+             colsample_bytree: 0.4, early_stopping_rounds: 200}
+
+final_model: lightgbm
+calibration: isotonic
+cv_folds: 3              # TimeSeriesSplit
+robustness_check: false
+
+explain:
+  top_k: 3
+  model: lightgbm
+
+fairness:
+  enabled: false
+
+promotion:
+  primary_metric: roc_auc
+  min_improvement: 0.002
+  guard_metrics: {recall_at_1pct_fpr: higher}
+
+costs: costs.yaml
+reports_dir: reports/fraud
+model_dir: models/fraud
+mlflow: true

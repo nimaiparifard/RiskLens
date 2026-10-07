@@ -1,0 +1,29 @@
+groups:
+  - name: risklens-serving
+    rules:
+      - alert: FraudLatencyBudgetExceeded
+        expr: histogram_quantile(0.95, sum by (le) (rate(risklens_model_latency_seconds_bucket{task="fraud"}[5m]))) > 0.05
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: "Fraud scoring p95 latency above the 50 ms budget"
+      - alert: HighErrorRate
+        expr: sum(rate(risklens_http_requests_total{status=~"5.."}[5m])) / sum(rate(risklens_http_requests_total[5m])) > 0.02
+        for: 5m
+        labels: { severity: critical }
+        annotations:
+          summary: "More than 2% of scoring requests fail"
+      - alert: NoModelLoaded
+        expr: absent(risklens_model_loaded == 1)
+        for: 2m
+        labels: { severity: critical }
+        annotations:
+          summary: "Serving has no model loaded"
+      - alert: ApprovalMixShift
+        expr: |
+          sum(rate(risklens_decisions_total{task="credit",decision="reject"}[6h]))
+            / sum(rate(risklens_decisions_total{task="credit"}[6h])) > 0.35
+        for: 1h
+        labels: { severity: warning }
+        annotations:
+          summary: "Credit reject share above 35% - check for data / prediction drift"

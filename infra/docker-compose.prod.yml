@@ -1,0 +1,22 @@
+# Production overrides: use the images pushed by cd.yml instead of building locally.
+services:
+  backend:
+    image: ghcr.io/${GHCR_OWNER}/risklens-backend:${IMAGE_TAG:-latest}
+    build: !reset null
+    restart: unless-stopped
+  worker:
+    image: ghcr.io/${GHCR_OWNER}/risklens-backend:${IMAGE_TAG:-latest}
+    build: !reset null
+    restart: unless-stopped
+  beat:
+    image: ghcr.io/${GHCR_OWNER}/risklens-backend:${IMAGE_TAG:-latest}
+    build: !reset null
+    restart: unless-stopped
+  serving:
+    image: ghcr.io/${GHCR_OWNER}/risklens-serving:${IMAGE_TAG:-latest}
+    build: !reset null
+    restart: unless-stopped
+  frontend:
+    image: ghcr.io/${GHCR_OWNER}/risklens-frontend:${IMAGE_TAG:-latest}
+    build: !reset null
+    restart: unless-stopped

@@ -1,0 +1,50 @@
+# secrets
+.env
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+*.egg-info/
+
+# data & artifacts (versioned by DVC / MLflow, not git)
+/data/raw/*
+/data/interim/*
+/data/processed/*
+!/data/**/.gitkeep
+/models/
+/mlruns/
+/mlartifacts/
+mlflow.db
+/.cache/
+/reports/**/plots/
+/reports/**/evaluate/
+
+# django
+# real Kaggle rows: not redistributable, regenerate with `make demo-data`
+backend/demo_data/*.json
+backend/staticfiles/
+backend/media/
+backend/db.sqlite3
+
+# node
+node_modules/
+frontend/dist/
+frontend/test-results/
+frontend/playwright-report/
+
+# raw screen recording (demo.gif / demo.mp4 are committed)
+docs/media/*.webm
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json

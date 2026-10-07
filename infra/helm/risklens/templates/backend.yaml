@@ -1,0 +1,39 @@
+{{- $root := . -}}
+{{- range $name, $cfg := dict "backend" .Values.backend "worker" .Values.worker "beat" (dict "replicas" 1 "resources" dict) }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $root.Release.Name }}-{{ $name }}
+  labels: {{- include "risklens.labels" $root | nindent 4 }}
+spec:
+  replicas: {{ $cfg.replicas }}
+  selector: { matchLabels: { app: {{ $root.Release.Name }}-{{ $name }} } }
+  template:
+    metadata:
+      labels: { app: {{ $root.Release.Name }}-{{ $name }} }
+    spec:
+      securityContext: { runAsNonRoot: true, runAsUser: 10001 }
+      containers:
+        - name: {{ $name }}
+          image: {{ include "risklens.image" (dict "root" $root "name" "backend") }}
+          imagePullPolicy: {{ $root.Values.image.pullPolicy }}
+          {{- if eq $name "worker" }}
+          command: ["celery", "-A", "config", "worker", "-l", "info"]
+          {{- else if eq $name "beat" }}
+          command: ["celery", "-A", "config", "beat", "-l", "info"]
+          {{- else }}
+          ports: [{ containerPort: 8000 }]
+          readinessProbe: { httpGet: { path: /api/health/, port: 8000 }, periodSeconds: 10 }
+          livenessProbe: { httpGet: { path: /api/health/, port: 8000 }, initialDelaySeconds: 30, periodSeconds: 20 }
+          {{- end }}
+          {{- include "risklens.backendEnv" $root | nindent 10 }}
+          resources: {{- toYaml $cfg.resources | nindent 12 }}
+---
+{{- end }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-backend
+spec:
+  selector: { app: {{ .Release.Name }}-backend }
+  ports: [{ port: 8000, targetPort: 8000 }]
