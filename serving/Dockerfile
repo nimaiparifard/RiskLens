@@ -1,5 +1,5 @@
 # Build context: repository root (installs the shared ml/ package = same feature code as training)
-FROM python:3.12-slim AS builder
+FROM python:3.15-slim AS builder
 ENV PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1
 RUN pip install uv
 WORKDIR /build
@@ -9,7 +9,7 @@ COPY serving/pyproject.toml serving/pyproject.toml
 RUN uv venv /opt/venv && \
     VIRTUAL_ENV=/opt/venv uv pip install "./ml[serve]" -r serving/pyproject.toml
 
-FROM python:3.12-slim
+FROM python:3.15-slim
 ENV PATH=/opt/venv/bin:$PATH PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
 RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 curl && rm -rf /var/lib/apt/lists/* && \
     useradd --create-home --uid 10001 app
